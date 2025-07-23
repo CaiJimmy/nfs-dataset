@@ -48,8 +48,19 @@ pc.defineParameter("osImage", "Select OS image",
                    portal.ParameterType.IMAGE,
                    imageList[1], imageList)
 
+# Optional physical type for all nodes.
+pc.defineParameter("phystype",  "Optional physical node type",
+                   portal.ParameterType.NODETYPE, "",
+                   longDescription="Pick a single physical node type (pc3000,d710,etc) " +
+                   "instead of letting the resource mapper choose for you.")
+
 # Always need this when using parameters
 params = pc.bindParameters()
+
+if params.phystype != "":
+    tokens = params.phystype.split(",")
+    if len(tokens) != 1:
+        pc.reportError(portal.ParameterError("Only a single type is allowed", ["phystype"]))
 
 # The NFS network. All these options are required.
 nfsLan = request.LAN(nfsLanName)
@@ -60,6 +71,7 @@ nfsLan.link_multiplexing = True
 # The NFS server.
 nfsServer = request.RawPC(nfsServerName)
 nfsServer.disk_image = params.osImage
+nfsServer.hardware_type = params.phystype
 # Attach server to lan.
 nfsLan.addInterface(nfsServer.addInterface())
 # Initialization script for the server
@@ -82,6 +94,11 @@ dslink.link_multiplexing = True
 for i in range(1, params.clientCount+1):
     node = request.RawPC("node%d" % i)
     node.disk_image = params.osImage
+
+    if params.phystype != "":
+        node.hardware_type = params.phystype
+        pass
+        
     nfsLan.addInterface(node.addInterface())
     # Initialization script for the clients
     node.addService(pg.Execute(shell="sh", command="sudo /bin/bash /local/repository/nfs-client.sh"))
